@@ -50,8 +50,8 @@ sort_by = st.sidebar.selectbox(
 
 if st.button("Run Multi-Site Deal Aggregator", type="primary"):
     with st.spinner(f"Agents querying marketplaces for '{search_query}' under ${max_budget}..."):
-        
-        # Simulated multi-site aggregated database response (In production, replace with API calls / scraping agents)
+
+        # Mock database items validated via Pydantic v2
         mock_deals = [
             DealItem(
                 title="Sony WH-1000XM5 Wireless Noise Canceling Headphones (Black)",
@@ -100,6 +100,7 @@ if st.button("Run Multi-Site Deal Aggregator", type="primary"):
             DealItem(
                 title="Sony WH-1000XM5 Brand New Retail Box",
                 source_site="Walmart",
+                condition="Brand New",
                 current_price=348.00,
                 historical_low=310.00,
                 historical_high=399.99,
@@ -108,23 +109,24 @@ if st.button("Run Multi-Site Deal Aggregator", type="primary"):
                 direct_link="https://walmart.com"
             )
         ]
-        
-        df = pd.DataFrame([deal.dict() for deal in mock_deals])
-        
+
+        # Use Pydantic v2 model_dump() for conversion
+        df = pd.DataFrame([deal.model_dump() for deal in mock_deals])
+
         # Apply dynamic user filters
         filtered_df = df[
             (df["current_price"] <= max_budget) &
             (df["condition"].isin(selected_conditions)) &
             (df["source_site"].isin(selected_sources))
         ]
-        
+
         if sort_by == "Highest ROI / Best Deal Score":
             filtered_df = filtered_df.sort_values(by="roi_score", ascending=False)
         elif sort_by == "Lowest Current Price":
             filtered_df = filtered_df.sort_values(by="current_price", ascending=True)
-            
+
         st.success(f"Aggregated {len(filtered_df)} top-tier deals matching your criteria!")
-        
+
         # --- Top Summary Metrics ---
         col1, col2, col3 = st.columns(3)
         if not filtered_df.empty:
@@ -133,17 +135,16 @@ if st.button("Run Multi-Site Deal Aggregator", type="primary"):
             col1.metric("Lowest Price Found", f"${best_price:.2f}")
             col2.metric("Market Average Price", f"${avg_price:.2f}")
             col3.metric("Markets Queried", len(selected_sources))
-        
+
         # --- Main Tabular Display ---
         st.subheader("📊 Aggregated Deal Intelligence & Price Comparison")
-        
+
         if not filtered_df.empty:
-            # Format display table
             display_df = filtered_df[["title", "source_site", "condition", "current_price", "historical_low", "historical_high", "deal_rating", "roi_score"]].copy()
             display_df.columns = ["Product Title", "Retailer", "Condition", "Current Price ($)", "Hist. Low ($)", "Hist. High ($)", "Deal Verdict", "ROI Score"]
-            
+
             st.dataframe(display_df, use_container_width=True)
-            
+
             st.markdown("### 🛒 Direct Retailer Links & Price Breakdown")
             for _, row in filtered_df.iterrows():
                 with st.expander(f"[{row['source_site']}] {row['title']} — ${row['current_price']} ({row['deal_rating']})"):
